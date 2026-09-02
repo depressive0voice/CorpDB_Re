@@ -1,7 +1,7 @@
 .git
 .github
 node_modules
-storage
+/storage
 .env
 .env.*
 coverage
