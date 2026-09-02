@@ -1,0 +1,22 @@
+{
+  "name": "corpdb",
+  "version": "0.1.0",
+  "description": "Self-hosted Discord bot for EVE Online corporation management",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "private": true,
+  "scripts": {
+    "start": "node src/index.js",
+    "config:check": "node src/config/check.js",
+    "check": "node scripts/check-syntax.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "discord.js": "^14.21.0",
+    "dotenv": "^17.2.1",
+    "exceljs": "^4.4.0"
+  }
+}

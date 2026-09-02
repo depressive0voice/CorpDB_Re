@@ -1,0 +1,21 @@
+services:
+  corpdb:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env
+    environment:
+      HTTP_HOST: 0.0.0.0
+      CORPDB_STORAGE_DIR: /app/storage
+    ports:
+      - "${HTTP_PORT:-3000}:${HTTP_PORT:-3000}"
+    volumes:
+      - corpdb-storage:/app/storage
+    stop_grace_period: 30s
+
+volumes:
+  corpdb-storage:
+    name: ${CORPDB_VOLUME_NAME:-corpdb-storage}

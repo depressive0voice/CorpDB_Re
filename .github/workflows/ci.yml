@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Release hygiene
+        run: |
+          test ! -e src/migrations
+          test ! -e scripts/migrate-legacy.js
+          test ! -e scripts/verify-storage.js
+          test ! -e src/storage/storageVerificationService.js
+          test ! -e src/localization/locales/zh-CN.js
+          if grep -R -n --fixed-strings 'zh-CN' README.md docs src test .env.example package.json; then
+            echo 'Unsupported zh-CN locale remnants found.'
+            exit 1
+          fi
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Syntax check
+        run: npm run check
+
+      - name: Tests
+        run: npm test
+
+      - name: Validate Docker Compose
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+
+      - name: Build Docker image
+        run: docker build --tag corpdb-ci:latest .
