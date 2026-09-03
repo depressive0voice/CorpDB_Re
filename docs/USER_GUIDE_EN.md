@@ -141,7 +141,7 @@ EVE_SSO_CLIENT_ID=...
 EVE_SSO_REDIRECT_URI=http://127.0.0.1:3000/auth/eve/callback
 ```
 
-`BOT_OWNER_IDS` is a comma-separated list of Discord user IDs. These users always receive the `master-admin` access level regardless of Discord roles.
+`BOT_OWNER_IDS` is a comma-separated list of Discord user IDs. These users always receive the `main-admin` access level regardless of Discord roles.
 
 Example:
 
@@ -354,9 +354,11 @@ CorpDB has three access levels:
 |---|---|
 | `user` | normal user |
 | `admin` | officer/functional administrator |
-| `master-admin` | instance owner and critical configuration |
+| `main-admin` | instance owner and critical configuration |
 
-Every ID in `BOT_OWNER_IDS` is always `master-admin`.
+Every ID in `BOT_OWNER_IDS` is always `main-admin`.
+
+`main-admin` is the canonical highest access-level value. Existing `storage/instance/access.json` files that still contain `master-admin` remain compatible: the old value is accepted as an alias and normalized to `main-admin` when the access configuration is loaded or written.
 
 A Discord role can be registered as an admin role:
 
@@ -390,7 +392,7 @@ Important defaults:
 
 - `user`: `/access`, `/request-main`;
 - `admin`: `/track`, `/fat-rewards`, `/blacklist`, `/auth`, `/finance`, `/applications`, `/structure-fuel`, `/binding-admin`, `/promote`, `/admin`;
-- `master-admin`: `/system`.
+- `main-admin`: `/system`.
 
 `/members` is registered at the general `user` level but internally requires an owner. `/language` is available to users. `/groups` uses its own eligibility, approver and owner checks.
 
@@ -432,7 +434,7 @@ Owner-only.
 
 `sync` reads the corporation membership through ESI, updates existing records, adds new members and marks characters that left. `status` reports the local member database size and last synchronization time.
 
-When one corporation is registered or a default corporation is available, the `corporation` argument may be omitted.
+The `corporation` option uses Discord autocomplete and lists only enabled registered corporations for which member synchronization is enabled. It may be omitted when the configured default corporation is eligible or only one eligible corporation exists.
 
 ---
 
@@ -569,7 +571,7 @@ With one corporation, the implicit `default` profile can be used. When onboardin
 
 Multiple corporations may share one profile.
 
-Master-admin commands:
+Main-admin commands:
 
 ```text
 /admin onboarding show
@@ -577,6 +579,8 @@ Master-admin commands:
 /admin onboarding map-corporation corporation:<id> profile:<id>
 /admin onboarding unmap-corporation corporation:<id>
 ```
+
+`corporation` on `map-corporation` and `unmap-corporation` autocompletes from enabled registered corporations for which onboarding is enabled. `profile` on `map-corporation` autocompletes from existing onboarding profiles. Optional `[profile]` fields on profile-specific onboarding commands also autocomplete existing profiles; omitting them uses `default`.
 
 Profile roles:
 
@@ -666,7 +670,7 @@ Commands:
 /applications check [corporation]
 ```
 
-`show-config` displays configuration. Channel changes, reset and manual check require `master-admin`.
+`show-config` displays configuration. Channel changes, reset and manual check require `main-admin`.
 
 During a check CorpDB:
 
@@ -842,7 +846,7 @@ If `month` is provided, it overrides `period`.
 
 ### Finance policy
 
-Master-admin:
+Main-admin:
 
 ```text
 /admin finance show [corporation]
@@ -1022,6 +1026,8 @@ Optional jobs run only when both the corresponding module and the relevant job s
 | FAT Rewards reminder | `fat-rewards` | 360 minutes |
 | Role Expiry | `role-expiry` | stored Role Expiry policy |
 
+ESI requests are protected against short transient failures. CorpDB retries network fetch failures and HTTP `429`, `502`, `503` and `504` responses up to three total attempts. The default retry delay uses exponential backoff (`500 ms`, then `1000 ms`), and a valid `Retry-After` response header takes precedence, capped at 30 seconds. Permanent HTTP errors such as `400`, `401`, `403` and `404` are not retried.
+
 Manual execution:
 
 ```text
@@ -1034,7 +1040,7 @@ Available job choices are generated dynamically. A job belonging to a disabled o
 
 ## 21. `/system`
 
-`/system` requires `master-admin` by default.
+`/system` requires `main-admin` by default.
 
 ### `/system ping`
 
@@ -1107,6 +1113,8 @@ Rules:
 - each corporation has its own profile, member snapshot and module-specific data;
 - EVE authorization is stored per corporation ID;
 - commands with a `corporation` argument autocomplete only eligible registered corporations;
+- `/members sync` and `/members status` use the same corporation autocomplete and filter out disabled/non-members corporations;
+- onboarding corporation selectors autocomplete enabled corporations with onboarding enabled, and profile selectors autocomplete existing onboarding profiles;
 - with a single corporation, many commands can resolve it without an explicit argument;
 - with multiple onboarding corporations, configure explicit `corporation → onboarding profile` mappings;
 - one onboarding profile may be shared by several corporations.
@@ -1180,6 +1188,8 @@ Run a manual refresh first:
 ```
 
 Then check `/finance income` and finance policy. Confirm that the Finance module is enabled and the service character has the required EVE permissions.
+
+A single transient ESI `429`, `502`, `503` or `504` normally does not require operator action because the ESI client retries it automatically. If the job still fails after the retry budget is exhausted, inspect the final error and try the job again after ESI recovers.
 
 ### Role Expiry does not enforce
 

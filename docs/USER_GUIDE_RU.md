@@ -141,7 +141,7 @@ EVE_SSO_CLIENT_ID=...
 EVE_SSO_REDIRECT_URI=http://127.0.0.1:3000/auth/eve/callback
 ```
 
-`BOT_OWNER_IDS` — список Discord user ID через запятую. Эти пользователи получают уровень доступа `master-admin` независимо от Discord-ролей.
+`BOT_OWNER_IDS` — список Discord user ID через запятую. Эти пользователи получают уровень доступа `main-admin` независимо от Discord-ролей.
 
 Пример:
 
@@ -354,9 +354,11 @@ CorpDB использует три уровня:
 |---|---|
 | `user` | обычный пользователь |
 | `admin` | офицер/администратор функций |
-| `master-admin` | владелец экземпляра и критическая конфигурация |
+| `main-admin` | владелец экземпляра и критическая конфигурация |
 
-Все ID из `BOT_OWNER_IDS` всегда получают `master-admin`.
+Все ID из `BOT_OWNER_IDS` всегда получают `main-admin`.
+
+`main-admin` — каноническое название максимального уровня доступа. Старые `storage/instance/access.json`, в которых ещё сохранено значение `master-admin`, остаются совместимыми: старое значение принимается как alias и при чтении/записи access configuration нормализуется в `main-admin`.
 
 Discord-роли можно назначить как административные:
 
@@ -390,7 +392,7 @@ Discord-роли можно назначить как административ
 
 - `user`: `/access`, `/request-main`;
 - `admin`: `/track`, `/fat-rewards`, `/blacklist`, `/auth`, `/finance`, `/applications`, `/structure-fuel`, `/binding-admin`, `/promote`, `/admin`;
-- `master-admin`: `/system`.
+- `main-admin`: `/system`.
 
 `/members` формально зарегистрирован на уровне `user`, но сама команда разрешает выполнение только owner. `/language` доступен пользователям. `/groups` применяет собственные eligibility/approver/owner checks.
 
@@ -432,7 +434,7 @@ Owner-only.
 
 `sync` получает состав из ESI, обновляет существующих персонажей, добавляет новых и отмечает ушедших. `status` показывает размер локальной базы и время последней синхронизации.
 
-Если зарегистрирована одна корпорация или задана корпорация по умолчанию, параметр `corporation` можно не указывать.
+Параметр `corporation` использует Discord autocomplete и показывает только включённые зарегистрированные корпорации, для которых включена синхронизация состава. Его можно не указывать, если подходит default corporation или доступна только одна подходящая корпорация.
 
 ---
 
@@ -569,7 +571,7 @@ Main привязка одобрена
 
 Несколько корпораций могут использовать один профиль.
 
-Основные команды master-admin:
+Основные команды main-admin:
 
 ```text
 /admin onboarding show
@@ -577,6 +579,8 @@ Main привязка одобрена
 /admin onboarding map-corporation corporation:<id> profile:<id>
 /admin onboarding unmap-corporation corporation:<id>
 ```
+
+В `map-corporation` и `unmap-corporation` поле `corporation` использует autocomplete по включённым зарегистрированным корпорациям, для которых включён onboarding. В `map-corporation` поле `profile` выбирается из уже созданных onboarding profiles. Необязательное поле `[profile]` в profile-specific onboarding-командах также использует autocomplete существующих профилей; если оно не указано, используется `default`.
 
 Роли профиля:
 
@@ -666,7 +670,7 @@ Applications отслеживает уведомления о заявках в 
 /applications check [corporation]
 ```
 
-`show-config` показывает текущую настройку. Изменение channel, reset и ручной check требуют `master-admin`.
+`show-config` показывает текущую настройку. Изменение channel, reset и ручной check требуют `main-admin`.
 
 При check CorpDB:
 
@@ -842,7 +846,7 @@ Periods:
 
 ### Finance policy (финансовая политика)
 
-Master-admin:
+Main-admin:
 
 ```text
 /admin finance show [corporation]
@@ -1022,6 +1026,8 @@ Optional jobs работают только если одновременно в
 | FAT Rewards reminder | `fat-rewards` | 360 минут |
 | Role Expiry | `role-expiry` | из Role Expiry policy |
 
+ESI-запросы защищены от коротких временных сбоев. CorpDB повторяет сетевые ошибки fetch и HTTP-ответы `429`, `502`, `503`, `504`, выполняя до трёх попыток всего. По умолчанию используется exponential backoff (`500 ms`, затем `1000 ms`), а корректный заголовок `Retry-After` имеет приоритет и ограничивается 30 секундами. Постоянные HTTP-ошибки вроде `400`, `401`, `403`, `404` повторно не отправляются.
+
 Ручной запуск:
 
 ```text
@@ -1034,7 +1040,7 @@ Optional jobs работают только если одновременно в
 
 ## 21. `/system`
 
-`/system` по умолчанию требует `master-admin`.
+`/system` по умолчанию требует `main-admin`.
 
 ### `/system ping`
 
@@ -1107,6 +1113,8 @@ ru
 - каждая корпорация получает собственный профиль, member snapshot и module-specific data;
 - EVE authorization хранится отдельно на corporation ID;
 - команды с параметром `corporation` предлагают только зарегистрированные подходящие корпорации;
+- `/members sync` и `/members status` используют тот же autocomplete корпораций и не показывают отключённые/неподходящие для members корпорации;
+- onboarding corporation selectors предлагают включённые корпорации с включённым onboarding, а profile selectors предлагают уже созданные onboarding profiles;
 - при одной корпорации большинство команд могут использовать её без явного параметра;
 - при нескольких onboarding corporations следует явно настроить `corporation → onboarding profile`;
 - один onboarding profile можно использовать для нескольких корпораций.
@@ -1180,6 +1188,8 @@ ru
 ```
 
 Затем проверьте `/finance income` и finance policy. Убедитесь, что Finance модуль включён и сервисный персонаж имеет нужные корпоративные права.
+
+Одиночная временная ошибка ESI `429`, `502`, `503` или `504` обычно не требует действий администратора: ESI client повторяет запрос автоматически. Если job всё же завершился ошибкой после исчерпания retry budget, проверьте финальную ошибку и повторите job после восстановления ESI.
 
 ### Role Expiry не выполняет автоматическое исключение
 

@@ -6,9 +6,11 @@
 
 - **User** — обычный пользователь.
 - **Admin** — CorpDB admin или участник Discord с ролью, добавленной через `/admin access add-admin-role`.
-- **Master-admin** — пользователь из `BOT_OWNER_IDS` или операция, для которой явно требуется master-admin.
+- **Main-admin** — владелец экземпляра и уровень для критической конфигурации. Пользователи из `BOT_OWNER_IDS` получают этот уровень автоматически.
 - **Owner-only** — только Discord user ID, указанный в `BOT_OWNER_IDS`. Понижение общего command level не отменяет такую внутреннюю проверку.
 - **Approver** — право определяется policy конкретной access group.
+
+`main-admin` — каноническое название максимального уровня доступа. Старое сохранённое значение `master-admin` принимается как compatibility alias и при чтении/записи access configuration нормализуется в `main-admin`.
 
 Optional-команды регистрируются в Discord только когда соответствующий module включён.
 
@@ -68,17 +70,17 @@ Optional-команды регистрируются в Discord только к�
 
 ## `/members`
 
-Команда имеет дополнительную owner-only проверку.
+Команда имеет дополнительную owner-only проверку. Поле `corporation` использует autocomplete и показывает только включённые зарегистрированные корпорации, для которых доступна синхронизация состава. Поле можно не указывать, если подходит default corporation или доступна только одна подходящая корпорация.
 
 ### `/members sync [corporation:<id>]`
 **Доступ:** Owner-only.
 
-Немедленно синхронизирует состав одной корпорации или всех подходящих корпораций при отсутствии явного ID согласно текущему context resolver.
+Немедленно синхронизирует состав выбранной корпорации.
 
 ### `/members status [corporation:<id>]`
 **Доступ:** Owner-only.
 
-Показывает состояние локального member snapshot.
+Показывает состояние локального member snapshot выбранной корпорации.
 
 ---
 
@@ -132,7 +134,7 @@ Optional-команды регистрируются в Discord только к�
 
 ## `/binding-admin`
 
-По умолчанию требует Admin. `unlink-user` и `unlink-main` дополнительно требуют Master-admin.
+По умолчанию требует Admin. `unlink-user` и `unlink-main` дополнительно требуют Main-admin.
 
 ### `/binding-admin status`
 Показывает summary pending/approved bindings и approval channel.
@@ -165,12 +167,12 @@ Optional-команды регистрируются в Discord только к�
 Показывает approved bindings.
 
 ### `/binding-admin unlink-user user:<user>`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 Удаляет approved binding по Discord user.
 
 ### `/binding-admin unlink-main main:<name>`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 Удаляет approved binding по EVE main.
 
@@ -186,30 +188,30 @@ Read-only audit Discord ↔ Main integrity. Ничего не исправляе
 ### `/admin access list`
 **Доступ:** Admin.
 
-Показывает admin roles и command-level policy.
+Показывает admin roles и настраиваемую command-level policy.
 
 ### `/admin access add-admin-role role:<role>`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 Добавляет Discord role в список CorpDB admin roles.
 
 ### `/admin access remove-admin-role role:<role>`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 Удаляет Discord role из списка admin roles.
 
-### `/admin access set-command-level command:<name> level:<user|admin|master-admin>`
-**Доступ:** Master-admin.
+### `/admin access set-command-level command:<name> level:<user|admin|main-admin>`
+**Доступ:** Main-admin.
 
 Меняет общий требуемый access level для поддерживаемой команды.
 
 ### `/admin access reset-command-level command:<name>`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 Возвращает command level к встроенному default.
 
 ### `/admin access reset-all`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 Сбрасывает access configuration к встроенным defaults, включая admin-role mappings и overrides.
 
@@ -217,7 +219,7 @@ Read-only audit Discord ↔ Main integrity. Ничего не исправляе
 
 ## `/admin onboarding`
 
-Все подкоманды требуют Master-admin.
+Все подкоманды требуют Main-admin.
 
 ### Профили
 
@@ -225,6 +227,8 @@ Read-only audit Discord ↔ Main integrity. Ничего не исправляе
 - `/admin onboarding profile-create profile:<id>` — создаёт profile.
 - `/admin onboarding map-corporation corporation:<id> profile:<id>` — связывает corporation с profile.
 - `/admin onboarding unmap-corporation corporation:<id>` — удаляет явный mapping.
+
+В `map-corporation` и `unmap-corporation` поле `corporation` использует autocomplete по включённым зарегистрированным корпорациям, для которых включён onboarding. В `map-corporation` поле `profile` выбирается autocomplete из уже созданных onboarding profiles. Необязательное поле `[profile]` в остальных profile-specific onboarding-командах также предлагает существующие профили; если поле не указано, используется `default`.
 
 ### Welcome
 
@@ -281,22 +285,22 @@ Applications — Core.
 Показывает alert channel и application source configuration.
 
 ### `/applications set-alert-channel channel:<channel> [corporation]`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 Задаёт channel для application cards.
 
 ### `/applications clear-alert-channel [corporation]`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 Удаляет alert channel setting.
 
 ### `/applications reset-cache [corporation]`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 Сбрасывает tracked application state. Для операций, где resolver предлагает `all`, может обрабатывать все подходящие corporations.
 
 ### `/applications check [corporation]`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 Немедленно запускает application processing и Discord card delivery/update.
 
@@ -335,7 +339,7 @@ Applications — Core.
 
 ## `/system`
 
-Все подкоманды требуют Master-admin.
+Все подкоманды требуют Main-admin.
 
 ### `/system ping`
 Показывает gateway latency, uptime и Node.js version.
@@ -458,30 +462,30 @@ role-expiry
 Показывает `player_donation` summary и recent entries.
 
 ### `/admin finance show [corporation]`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 Показывает finance policy.
 
 ### `/admin finance set-alliance-tax rate:<0-100> [corporation]`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 ### `/admin finance taxable-add ref-type:<value> [corporation]`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 ### `/admin finance taxable-remove ref-type:<value> [corporation]`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 ### `/admin finance wallet-exclude division:<1-7> [corporation]`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 ### `/admin finance wallet-include division:<1-7> [corporation]`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 ### `/admin finance donation-alert-set user:<user> division:<1-7> [corporation]`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 ### `/admin finance donation-alert-disable [corporation]`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 ---
 
@@ -503,29 +507,29 @@ role-expiry
 Read-only список disabled alert filters.
 
 ### `/structure-fuel alert-disable [corporation] [class] [group] [type] [structure]`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 Добавляет disabled alert filter.
 
 ### `/structure-fuel alert-enable [corporation] [class] [group] [type] [structure]`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 Удаляет matching disabled filter.
 
 ### `/structure-fuel set-alert-channel channel:<channel> [corporation]`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 ### `/structure-fuel clear-alert-channel [corporation]`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 ### `/structure-fuel set-alert-role role:<role> [corporation]`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 ### `/structure-fuel clear-alert-role [corporation]`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 ### `/structure-fuel check-alerts [corporation]`
-**Доступ:** Master-admin.
+**Доступ:** Main-admin.
 
 Немедленно выполняет structure check и текущий alert workflow.
 
@@ -565,7 +569,7 @@ Read-only список disabled alert filters.
 
 ## `/admin modules` — optional module management
 
-Все подкоманды требуют Master-admin.
+Все подкоманды требуют Main-admin.
 
 ### `/admin modules list`
 Показывает states всех optional modules.

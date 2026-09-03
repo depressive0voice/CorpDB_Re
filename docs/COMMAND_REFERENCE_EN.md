@@ -6,9 +6,11 @@ This file describes the current CorpDB slash-command surface. Installation and f
 
 - **User** — normal user.
 - **Admin** — CorpDB admin or a member with a Discord role added through `/admin access add-admin-role`.
-- **Master-admin** — instance owner for critical configuration.
+- **Main-admin** — instance owner for critical configuration. Users listed in `BOT_OWNER_IDS` receive this level.
 - **Owner-only** — only Discord user IDs listed in `BOT_OWNER_IDS`. Lowering a general command level does not bypass this internal check.
 - **Approver** — permission is determined by the policy of the specific access group.
+
+`main-admin` is the canonical highest access-level value. Existing stored `master-admin` values are accepted as a backward-compatibility alias and normalized to `main-admin` when access configuration is loaded or written.
 
 Optional commands are registered in Discord only while their module is enabled.
 
@@ -68,7 +70,7 @@ Shows the complete `Alt → Main` relationship list.
 
 ## `/members`
 
-The command has an additional owner-only check.
+The command has an additional owner-only check. The `corporation` field uses autocomplete and shows only enabled registered corporations for which member synchronization is enabled. It may be omitted when the default corporation is eligible or only one eligible corporation exists.
 
 ### `/members sync [corporation:<id>]`
 **Access:** Owner-only.
@@ -132,7 +134,7 @@ Sets the post-approval trial role. On a new configuration, use Rookie as the tri
 
 ## `/binding-admin`
 
-Requires Admin by default. `unlink-user` and `unlink-main` additionally require Master-admin.
+Requires Admin by default. `unlink-user` and `unlink-main` additionally require Main-admin.
 
 ### `/binding-admin status`
 Shows pending/approved binding counts and approval-channel status.
@@ -165,12 +167,12 @@ Reposts the approval card without creating a new request.
 Lists approved bindings.
 
 ### `/binding-admin unlink-user user:<user>`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 Removes an approved binding by Discord user.
 
 ### `/binding-admin unlink-main main:<name>`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 Removes an approved binding by EVE main.
 
@@ -186,30 +188,30 @@ Read-only Discord ↔ Main integrity audit. It does not repair data automaticall
 ### `/admin access list`
 **Access:** Admin.
 
-Shows admin roles and command-level policy.
+Shows admin roles and the configurable command-level policy.
 
 ### `/admin access add-admin-role role:<role>`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 Adds a Discord role to CorpDB admin roles.
 
 ### `/admin access remove-admin-role role:<role>`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 Removes a Discord role from CorpDB admin roles.
 
-### `/admin access set-command-level command:<name> level:<user|admin|master-admin>`
-**Access:** Master-admin.
+### `/admin access set-command-level command:<name> level:<user|admin|main-admin>`
+**Access:** Main-admin.
 
 Changes the general access requirement for a supported command.
 
 ### `/admin access reset-command-level command:<name>`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 Restores the built-in default command level.
 
 ### `/admin access reset-all`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 Resets access configuration to built-in defaults, including admin-role mappings and overrides.
 
@@ -217,7 +219,7 @@ Resets access configuration to built-in defaults, including admin-role mappings 
 
 ## `/admin onboarding`
 
-All subcommands require Master-admin.
+All subcommands require Main-admin.
 
 ### Profiles
 
@@ -225,6 +227,8 @@ All subcommands require Master-admin.
 - `/admin onboarding profile-create profile:<id>` — creates a profile.
 - `/admin onboarding map-corporation corporation:<id> profile:<id>` — maps a corporation to a profile.
 - `/admin onboarding unmap-corporation corporation:<id>` — removes an explicit mapping.
+
+For `map-corporation` and `unmap-corporation`, the `corporation` field autocompletes enabled registered corporations for which onboarding is enabled. `map-corporation` autocompletes `profile` from existing onboarding profiles. Optional `[profile]` fields on profile-specific onboarding commands also autocomplete existing profiles; omitting the field uses `default`.
 
 ### Welcome
 
@@ -281,22 +285,22 @@ Applications is Core.
 Shows alert-channel and application-source configuration.
 
 ### `/applications set-alert-channel channel:<channel> [corporation]`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 Sets the channel for application cards.
 
 ### `/applications clear-alert-channel [corporation]`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 Clears the application alert-channel setting.
 
 ### `/applications reset-cache [corporation]`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 Resets tracked application state.
 
 ### `/applications check [corporation]`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 Runs application processing and Discord card delivery/update immediately.
 
@@ -335,7 +339,7 @@ Lists stored closed FAT months.
 
 ## `/system`
 
-All subcommands require Master-admin.
+All subcommands require Main-admin.
 
 ### `/system ping`
 Shows gateway latency, uptime and Node.js version.
@@ -458,30 +462,30 @@ Shows the income/tax report.
 Shows the `player_donation` summary and recent entries.
 
 ### `/admin finance show [corporation]`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 Shows finance policy.
 
 ### `/admin finance set-alliance-tax rate:<0-100> [corporation]`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 ### `/admin finance taxable-add ref-type:<value> [corporation]`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 ### `/admin finance taxable-remove ref-type:<value> [corporation]`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 ### `/admin finance wallet-exclude division:<1-7> [corporation]`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 ### `/admin finance wallet-include division:<1-7> [corporation]`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 ### `/admin finance donation-alert-set user:<user> division:<1-7> [corporation]`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 ### `/admin finance donation-alert-disable [corporation]`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 ---
 
@@ -503,29 +507,29 @@ Shows alert channel, ping role, threshold and filters.
 Read-only list of disabled alert filters.
 
 ### `/structure-fuel alert-disable [corporation] [class] [group] [type] [structure]`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 Adds a disabled alert filter.
 
 ### `/structure-fuel alert-enable [corporation] [class] [group] [type] [structure]`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 Removes a matching disabled filter.
 
 ### `/structure-fuel set-alert-channel channel:<channel> [corporation]`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 ### `/structure-fuel clear-alert-channel [corporation]`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 ### `/structure-fuel set-alert-role role:<role> [corporation]`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 ### `/structure-fuel clear-alert-role [corporation]`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 ### `/structure-fuel check-alerts [corporation]`
-**Access:** Master-admin.
+**Access:** Main-admin.
 
 Runs the structure check and current alert workflow immediately.
 
@@ -565,7 +569,7 @@ Configures the stale-summary reminder. When `days` is omitted, 31 days is used.
 
 ## `/admin modules` — optional module management
 
-All subcommands require Master-admin.
+All subcommands require Main-admin.
 
 ### `/admin modules list`
 Shows all optional-module states.
