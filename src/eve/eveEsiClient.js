@@ -2,6 +2,10 @@ const ESI_BASE_URL = 'https://esi.evetech.net';
 const UNIVERSE_NAMES_BATCH_SIZE = 1000;
 const DEFAULT_WALLET_JOURNAL_MAX_PAGES = 5;
 const ESI_SAFE_PAGE_LIMIT = 100;
+const DEFAULT_ESI_MAX_ATTEMPTS = 3;
+const DEFAULT_ESI_RETRY_BASE_DELAY_MS = 500;
+const ESI_MAX_RETRY_DELAY_MS = 30000;
+const ESI_RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);
 
 function buildEsiUrl(config, pathname) {
   const url = new URL(pathname, ESI_BASE_URL);
@@ -11,8 +15,47 @@ function buildEsiUrl(config, pathname) {
   return url;
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function normalizePositiveInteger(value, fallback) {
+  const parsed = Math.floor(Number(value));
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function getRetryAfterMs(response) {
+  const raw = String(response?.headers?.get?.('retry-after') || '').trim();
+  if (!raw) return null;
+
+  const seconds = Number(raw);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.min(Math.ceil(seconds * 1000), ESI_MAX_RETRY_DELAY_MS);
+  }
+
+  const retryAt = Date.parse(raw);
+  if (!Number.isFinite(retryAt)) return null;
+  return Math.min(Math.max(0, retryAt - Date.now()), ESI_MAX_RETRY_DELAY_MS);
+}
+
+function getRetryDelayMs(response, attempt, baseDelayMs) {
+  const retryAfterMs = getRetryAfterMs(response);
+  if (retryAfterMs !== null) return retryAfterMs;
+  return Math.min(baseDelayMs * (2 ** Math.max(0, attempt - 1)), ESI_MAX_RETRY_DELAY_MS);
+}
+
+function isRetryableEsiStatus(status) {
+  return ESI_RETRYABLE_STATUSES.has(Number(status));
+}
+
 async function requestEsi(config, pathname, options = {}) {
   const fetchImpl = options.fetchImpl || fetch;
+  const sleepImpl = options.sleepImpl || sleep;
+  const maxAttempts = normalizePositiveInteger(options.maxAttempts, DEFAULT_ESI_MAX_ATTEMPTS);
+  const retryBaseDelayMs = normalizePositiveInteger(
+    options.retryBaseDelayMs,
+    DEFAULT_ESI_RETRY_BASE_DELAY_MS
+  );
   const headers = {
     Accept: 'application/json',
     'User-Agent': 'CorpDB/0.1.0',
@@ -30,20 +73,46 @@ async function requestEsi(config, pathname, options = {}) {
     body = JSON.stringify(options.body);
   }
 
-  const response = await fetchImpl(buildEsiUrl(config, pathname), {
+  const request = {
     method: options.method || 'GET',
     headers,
     body,
-  });
+  };
+  const url = buildEsiUrl(config, pathname);
 
-  if (!response.ok) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    let response;
+    try {
+      response = await fetchImpl(url, request);
+    } catch (cause) {
+      if (attempt >= maxAttempts) {
+        const error = new Error(
+          `ESI request failed for ${pathname} after ${attempt} attempts: ${cause?.message || cause}`
+        );
+        error.cause = cause;
+        error.attempts = attempt;
+        throw error;
+      }
+      await sleepImpl(getRetryDelayMs(null, attempt, retryBaseDelayMs));
+      continue;
+    }
+
+    if (response.ok) return response;
+
+    if (isRetryableEsiStatus(response.status) && attempt < maxAttempts) {
+      await response.text().catch(() => '');
+      await sleepImpl(getRetryDelayMs(response, attempt, retryBaseDelayMs));
+      continue;
+    }
+
     const text = await response.text().catch(() => '');
     const error = new Error(`ESI request failed for ${pathname} (${response.status}): ${text}`);
     error.status = response.status;
+    error.attempts = attempt;
     throw error;
   }
 
-  return response;
+  throw new Error(`ESI request failed for ${pathname}.`);
 }
 
 async function requestEsiJson(config, pathname, options = {}) {
@@ -252,7 +321,13 @@ module.exports = {
   UNIVERSE_NAMES_BATCH_SIZE,
   DEFAULT_WALLET_JOURNAL_MAX_PAGES,
   ESI_SAFE_PAGE_LIMIT,
+  DEFAULT_ESI_MAX_ATTEMPTS,
+  DEFAULT_ESI_RETRY_BASE_DELAY_MS,
+  ESI_RETRYABLE_STATUSES,
   buildEsiUrl,
+  getRetryAfterMs,
+  getRetryDelayMs,
+  isRetryableEsiStatus,
   requestEsi,
   requestEsiJson,
   requestAllPages,

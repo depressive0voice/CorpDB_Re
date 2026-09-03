@@ -11,6 +11,7 @@ const {
 } = require('../../access/accessService');
 const {
   configureOnboardingGroup,
+  autocompleteOnboardingAdmin,
   executeOnboardingAdmin,
 } = require('./onboardingAdminGroup');
 const {
@@ -235,6 +236,10 @@ async function executeAccessAdmin(interaction, context, access) {
 
 async function autocomplete(interaction, context) {
   const group = interaction.options.getSubcommandGroup(false);
+  if (group === 'onboarding') {
+    await autocompleteOnboardingAdmin(interaction, context);
+    return;
+  }
   if (group === 'finance') {
     await autocompleteFinanceAdmin(interaction, context);
     return;

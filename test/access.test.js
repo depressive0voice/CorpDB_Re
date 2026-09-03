@@ -57,17 +57,18 @@ test('command access defaults match the current CorpDB command policy', async ()
     assert.equal(current.commandLevels.track, ACCESS_LEVELS.ADMIN);
     assert.equal(current.commandLevels['fat-rewards'], ACCESS_LEVELS.ADMIN);
     assert.equal(current.commandLevels.admin, ACCESS_LEVELS.ADMIN);
-    assert.equal(current.commandLevels.system, ACCESS_LEVELS.MASTER_ADMIN);
+    assert.equal(current.commandLevels.system, ACCESS_LEVELS.MAIN_ADMIN);
+    assert.equal(Object.hasOwn(current.commandLevels, 'help'), false);
     assert.equal(Object.hasOwn(current.commandLevels, 'activity'), false);
   });
 });
 
-test('owners are master-admin and configured Discord admin roles grant admin', async () => {
+test('owners are main-admin and configured Discord admin roles grant admin', async () => {
   await withTempStorage(async (root) => {
     const cfg = config(root);
     await addAdminRole(root, '73003');
 
-    assert.equal((await getBaseAccessLevel(cfg, root, member('90001'))).level, ACCESS_LEVELS.MASTER_ADMIN);
+    assert.equal((await getBaseAccessLevel(cfg, root, member('90001'))).level, ACCESS_LEVELS.MAIN_ADMIN);
     assert.equal((await getBaseAccessLevel(cfg, root, member('72001', ['73003']))).level, ACCESS_LEVELS.ADMIN);
     assert.equal((await getBaseAccessLevel(cfg, root, member('72002'))).level, ACCESS_LEVELS.USER);
   });
@@ -97,6 +98,14 @@ test('command levels can be changed and reset only for current settable commands
     assert.deepEqual(changed, { ok: true, commandName: 'track', level: ACCESS_LEVELS.USER });
     assert.equal((await getAccessList(root)).commandLevels.track, ACCESS_LEVELS.USER);
 
+    const legacyTopLevel = await setAccessLevelForCommand(root, 'track', 'master-admin');
+    assert.deepEqual(legacyTopLevel, {
+      ok: true,
+      commandName: 'track',
+      level: ACCESS_LEVELS.MAIN_ADMIN,
+    });
+    assert.equal((await getAccessList(root)).commandLevels.track, ACCESS_LEVELS.MAIN_ADMIN);
+
     const reset = await resetAccessLevelForCommand(root, 'track');
     assert.equal(reset.level, COMMAND_ACCESS_DEFAULTS.track);
     assert.equal((await getAccessList(root)).commandLevels.track, COMMAND_ACCESS_DEFAULTS.track);
@@ -105,7 +114,11 @@ test('command levels can be changed and reset only for current settable commands
     assert.equal(removedActivityMutation.ok, false);
     assert.equal(removedActivityMutation.code, 'command_not_settable');
 
-    const accessMutation = await setAccessLevelForCommand(root, 'access', ACCESS_LEVELS.MASTER_ADMIN);
+    const helpMutation = await setAccessLevelForCommand(root, 'help', ACCESS_LEVELS.ADMIN);
+    assert.equal(helpMutation.ok, false);
+    assert.equal(helpMutation.code, 'command_not_settable');
+
+    const accessMutation = await setAccessLevelForCommand(root, 'access', ACCESS_LEVELS.MAIN_ADMIN);
     assert.equal(accessMutation.ok, false);
     assert.equal(accessMutation.code, 'command_not_settable');
   });

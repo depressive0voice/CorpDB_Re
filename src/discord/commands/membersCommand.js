@@ -1,10 +1,22 @@
 const { MessageFlags, SlashCommandBuilder } = require('discord.js');
 const { readRegistry } = require('../../corporations/corporationRegistryRepository');
+const { autocompleteCorporations } = require('../../corporations/corporationChoiceService');
 const {
   syncCorporationMembers,
   getMemberSummary,
 } = require('../../members/memberSyncService');
 const { readCorporationProfile } = require('../../corporations/corporationProfileRepository');
+
+function addCorporationOption(subcommand) {
+  return subcommand.addStringOption((option) => option
+    .setName('corporation')
+    .setDescription('Select a corporation; omit to use the default corporation')
+    .setDescriptionLocalizations({
+      ru: 'Выбрать корпорацию; по умолчанию используется основная',
+    })
+    .setAutocomplete(true)
+    .setRequired(false));
+}
 
 const data = new SlashCommandBuilder()
   .setName('members')
@@ -12,26 +24,18 @@ const data = new SlashCommandBuilder()
   .setDescriptionLocalizations({
     ru: 'Управление синхронизацией состава корпорации',
   })
-  .addSubcommand((subcommand) => subcommand
+  .addSubcommand((subcommand) => addCorporationOption(subcommand
     .setName('sync')
     .setDescription('Synchronize corporation members from ESI')
     .setDescriptionLocalizations({
       ru: 'Синхронизировать состав корпорации из ESI',
-    })
-    .addStringOption((option) => option
-      .setName('corporation')
-      .setDescription('Corporation ID; omit to use the default corporation')
-      .setRequired(false)))
-  .addSubcommand((subcommand) => subcommand
+    })))
+  .addSubcommand((subcommand) => addCorporationOption(subcommand
     .setName('status')
     .setDescription('Show local corporation member synchronization status')
     .setDescriptionLocalizations({
       ru: 'Показать состояние локальной базы состава корпорации',
-    })
-    .addStringOption((option) => option
-      .setName('corporation')
-      .setDescription('Corporation ID; omit to use the default corporation')
-      .setRequired(false)));
+    })));
 
 function isOwner(config, userId) {
   return config.discord.ownerIds.includes(String(userId));
@@ -51,22 +55,47 @@ async function resolveCorporationId(storageRoot, requestedCorporationId, t = nul
   const requested = String(requestedCorporationId || '').trim();
 
   if (requested) {
-    if (!registry.corporations.some((entry) => entry.corporationId === requested)) {
+    const registration = registry.corporations.find(
+      (entry) => entry.corporationId === requested
+        && entry.enabled
+        && entry.features?.members !== false
+    );
+    if (!registration) {
       throw new Error(t
         ? t('members.error.notRegistered', { corporationId: requested })
-        : `Corporation ${requested} is not registered in this CorpDB instance.`);
+        : `Corporation ${requested} is not registered or members sync is disabled for it.`);
     }
     return requested;
   }
 
-  if (registry.defaultCorporationId) return registry.defaultCorporationId;
-  if (registry.corporations.length === 1) return registry.corporations[0].corporationId;
+  const enabled = registry.corporations.filter(
+    (entry) => entry.enabled && entry.features?.members !== false
+  );
+  if (enabled.some((entry) => entry.corporationId === registry.defaultCorporationId)) {
+    return registry.defaultCorporationId;
+  }
+  if (enabled.length === 1) return enabled[0].corporationId;
   throw new Error(t ? t('members.error.noDefault') : 'No default corporation is configured.');
 }
 
 function formatCorporation(profile, corporationId) {
   if (!profile?.name) return corporationId;
   return `${profile.name}${profile.ticker ? ` [${profile.ticker}]` : ''}`;
+}
+
+async function autocomplete(interaction, context) {
+  const focused = interaction.options.getFocused(true);
+  if (focused.name !== 'corporation') {
+    await interaction.respond([]);
+    return;
+  }
+
+  const choices = await autocompleteCorporations(
+    context.config.storage.rootDir,
+    focused.value,
+    { feature: 'members' }
+  );
+  await interaction.respond(choices);
 }
 
 async function handleSync(interaction, context) {
@@ -155,5 +184,6 @@ async function execute(interaction, context) {
 module.exports = {
   data,
   execute,
+  autocomplete,
   resolveCorporationId,
 };

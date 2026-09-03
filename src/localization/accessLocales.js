@@ -2,7 +2,7 @@ module.exports = Object.freeze({
   en: Object.freeze({
     'access.denied.command': 'You do not have access to `/{command}`. Required level: `{level}`.',
     'access.denied.admin': 'Access denied. Required level: admin.',
-    'access.denied.masterAdmin': 'Access denied. Required level: master-admin.',
+    'access.denied.masterAdmin': 'Access denied. Required level: main-admin.',
     'access.whoami.title': '**Your access level**',
     'access.whoami.level': 'Level: **{level}**',
     'access.whoami.reason': 'Reason: **{reason}**',
@@ -31,7 +31,7 @@ module.exports = Object.freeze({
   ru: Object.freeze({
     'access.denied.command': 'У вас нет доступа к `/{command}`. Требуемый уровень: `{level}`.',
     'access.denied.admin': 'Доступ запрещён. Требуется уровень: admin.',
-    'access.denied.masterAdmin': 'Доступ запрещён. Требуется уровень: master-admin.',
+    'access.denied.masterAdmin': 'Доступ запрещён. Требуется уровень: main-admin.',
     'access.whoami.title': '**Ваш уровень доступа**',
     'access.whoami.level': 'Уровень: **{level}**',
     'access.whoami.reason': 'Причина: **{reason}**',

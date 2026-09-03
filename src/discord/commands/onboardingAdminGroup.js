@@ -1,5 +1,6 @@
 const { MessageFlags } = require('discord.js');
 const { getCorporationRegistration } = require('../../corporations/corporationRegistryRepository');
+const { autocompleteCorporations } = require('../../corporations/corporationChoiceService');
 const {
   DEFAULT_PROFILE_ID,
   readOnboardingConfig,
@@ -29,6 +30,7 @@ function addProfileOption(subcommand) {
       ru: 'ID onboarding-профиля; по умолчанию default',
     })
     .setMaxLength(64)
+    .setAutocomplete(true)
     .setRequired(false));
 }
 
@@ -77,11 +79,15 @@ function configureOnboardingGroup(group) {
       })
       .addStringOption((option) => option
         .setName('corporation')
-        .setDescription('EVE corporation ID')
+        .setDescription('Select an EVE corporation')
+        .setDescriptionLocalizations({ ru: 'Выбрать EVE-корпорацию' })
+        .setAutocomplete(true)
         .setRequired(true))
       .addStringOption((option) => option
         .setName('profile')
-        .setDescription('Profile ID')
+        .setDescription('Select an onboarding profile')
+        .setDescriptionLocalizations({ ru: 'Выбрать onboarding-профиль' })
+        .setAutocomplete(true)
         .setRequired(true)
         .setMaxLength(64)))
     .addSubcommand((subcommand) => subcommand
@@ -92,7 +98,9 @@ function configureOnboardingGroup(group) {
       })
       .addStringOption((option) => option
         .setName('corporation')
-        .setDescription('EVE corporation ID')
+        .setDescription('Select an EVE corporation')
+        .setDescriptionLocalizations({ ru: 'Выбрать EVE-корпорацию' })
+        .setAutocomplete(true)
         .setRequired(true)))
     .addSubcommand((subcommand) => subcommand
       .setName('set-welcome-channel')
@@ -245,6 +253,32 @@ async function resolvePreviewMember(interaction) {
   const user = interaction.options.getUser('user', false);
   if (!user) return interaction.member;
   return interaction.guild.members.fetch(user.id);
+}
+
+async function autocompleteOnboardingAdmin(interaction, context) {
+  const focused = interaction.options.getFocused(true);
+  const storageRoot = context.config.storage.rootDir;
+
+  if (focused.name === 'corporation') {
+    const choices = await autocompleteCorporations(storageRoot, focused.value, {
+      feature: 'onboarding',
+    });
+    await interaction.respond(choices);
+    return;
+  }
+
+  if (focused.name === 'profile') {
+    const config = await readOnboardingConfig(storageRoot);
+    const query = String(focused.value || '').trim().toLowerCase();
+    const choices = Object.keys(config.profiles)
+      .filter((profileId) => !query || profileId.toLowerCase().includes(query))
+      .slice(0, 25)
+      .map((profileId) => ({ name: profileId.slice(0, 100), value: profileId }));
+    await interaction.respond(choices);
+    return;
+  }
+
+  await interaction.respond([]);
 }
 
 async function executeOnboardingAdmin(interaction, context) {
@@ -484,5 +518,6 @@ async function executeOnboardingAdmin(interaction, context) {
 
 module.exports = {
   configureOnboardingGroup,
+  autocompleteOnboardingAdmin,
   executeOnboardingAdmin,
 };

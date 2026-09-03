@@ -4,11 +4,12 @@ const { readJson, writeJsonAtomic } = require('../storage/jsonFileStore');
 const ACCESS_LEVELS = Object.freeze({
   USER: 'user',
   ADMIN: 'admin',
-  MASTER_ADMIN: 'master-admin',
+  MAIN_ADMIN: 'main-admin',
+  // Backward-compatible code alias. Persisted/user-facing value is main-admin.
+  MASTER_ADMIN: 'main-admin',
 });
 
 const COMMAND_ACCESS_DEFAULTS = Object.freeze({
-  help: ACCESS_LEVELS.USER,
   settings: ACCESS_LEVELS.USER,
   access: ACCESS_LEVELS.USER,
   'request-main': ACCESS_LEVELS.USER,
@@ -25,7 +26,7 @@ const COMMAND_ACCESS_DEFAULTS = Object.freeze({
   promote: ACCESS_LEVELS.ADMIN,
   admin: ACCESS_LEVELS.ADMIN,
 
-  system: ACCESS_LEVELS.MASTER_ADMIN,
+  system: ACCESS_LEVELS.MAIN_ADMIN,
 });
 
 const SETTABLE_COMMAND_NAMES = Object.freeze(
@@ -35,9 +36,10 @@ const SETTABLE_COMMAND_NAMES = Object.freeze(
 const ACCESS_LEVEL_ALIASES = Object.freeze({
   [ACCESS_LEVELS.USER]: ACCESS_LEVELS.USER,
   [ACCESS_LEVELS.ADMIN]: ACCESS_LEVELS.ADMIN,
-  [ACCESS_LEVELS.MASTER_ADMIN]: ACCESS_LEVELS.MASTER_ADMIN,
+  [ACCESS_LEVELS.MAIN_ADMIN]: ACCESS_LEVELS.MAIN_ADMIN,
+  'master-admin': ACCESS_LEVELS.MAIN_ADMIN,
   member: ACCESS_LEVELS.USER,
-  owner: ACCESS_LEVELS.MASTER_ADMIN,
+  owner: ACCESS_LEVELS.MAIN_ADMIN,
 });
 
 function createDefaultAccessConfig() {
