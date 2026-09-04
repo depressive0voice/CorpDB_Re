@@ -113,19 +113,42 @@ async function ensureAdmin(interaction, context) {
   return false;
 }
 
+function splitLongLine(rawLine, maxLength = MESSAGE_LIMIT) {
+  const line = String(rawLine || '');
+  if (line.length <= maxLength) return [line];
+
+  const parts = [];
+  let rest = line;
+  while (rest.length > maxLength) {
+    let splitAt = rest.lastIndexOf(', ', maxLength);
+    if (splitAt < Math.floor(maxLength * 0.5)) {
+      splitAt = rest.lastIndexOf(' ', maxLength);
+    }
+    if (splitAt < Math.floor(maxLength * 0.5)) splitAt = maxLength;
+
+    parts.push(rest.slice(0, splitAt));
+    rest = rest.slice(splitAt);
+    if (rest.startsWith(', ')) rest = rest.slice(2);
+    else if (rest.startsWith(' ')) rest = rest.slice(1);
+  }
+  if (rest) parts.push(rest);
+  return parts;
+}
+
 function chunkLines(lines, maxLength = MESSAGE_LIMIT) {
   const chunks = [];
   let current = '';
 
   for (const rawLine of Array.isArray(lines) ? lines : []) {
-    const line = String(rawLine || '');
-    const candidate = current ? `${current}\n${line}` : line;
-    if (candidate.length <= maxLength) {
-      current = candidate;
-      continue;
+    for (const line of splitLongLine(rawLine, maxLength)) {
+      const candidate = current ? `${current}\n${line}` : line;
+      if (candidate.length <= maxLength) {
+        current = candidate;
+        continue;
+      }
+      if (current) chunks.push(current);
+      current = line;
     }
-    if (current) chunks.push(current);
-    current = line.length <= maxLength ? line : line.slice(0, maxLength);
   }
 
   if (current) chunks.push(current);
@@ -175,23 +198,24 @@ async function handleSetup(interaction, context) {
 }
 
 async function handleStatus(interaction, context) {
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   const entries = await getAuthorizationStatus(context.config.storage.rootDir);
   if (entries.length === 0) {
-    await interaction.reply({
-      content: context.t('auth.status.none'),
-      flags: MessageFlags.Ephemeral,
-    });
+    await interaction.editReply({ content: context.t('auth.status.none') });
     return;
   }
 
-  const lines = entries.map((entry) => {
+  const lines = [];
+  entries.forEach((entry, index) => {
     const corporation = entry.corporationName
       ? `${entry.corporationName}${entry.corporationTicker ? ` [${entry.corporationTicker}]` : ''}`
       : entry.corporationId;
     const roles = entry.corporationRoles.length > 0
       ? entry.corporationRoles.join(', ')
       : context.t('auth.status.rolesNotDetected');
-    return [
+
+    if (index > 0) lines.push('');
+    lines.push(
       `**${corporation}** (\`${entry.corporationId}\`)`,
       context.t('auth.status.character', {
         character: entry.characterName || entry.characterId,
@@ -199,14 +223,11 @@ async function handleStatus(interaction, context) {
       context.t('auth.status.scopesRoles', {
         scopes: entry.scopes.length,
         roles,
-      }),
-    ].join('\n');
+      })
+    );
   });
 
-  await interaction.reply({
-    content: lines.join('\n\n'),
-    flags: MessageFlags.Ephemeral,
-  });
+  await sendChunkedDeferredReply(interaction, lines);
 }
 
 async function handleImportHtml(interaction, context) {
@@ -352,4 +373,5 @@ module.exports = {
   execute,
   isOwner,
   chunkLines,
+  splitLongLine,
 };
