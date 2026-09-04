@@ -432,6 +432,11 @@ Parameters:
 - `approvals` — 1–10;
 - `revoke_policy` — `manual`, `prerequisite-loss`, `corporation-leave`.
 
+### `/groups delete group:<id>`
+**Access:** Owner-only.
+
+The `group` field autocompletes existing access groups. The command permanently removes the access group from configuration and deletes all stored requests for that group regardless of status. Discord roles previously granted by the group are not removed automatically.
+
 ### `/groups role-add group:<id> kind:<kind> role:<role>`
 **Access:** Owner-only.
 

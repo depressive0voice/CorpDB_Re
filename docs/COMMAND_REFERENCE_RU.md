@@ -432,6 +432,11 @@ role-expiry
 - `approvals` — 1–10;
 - `revoke_policy` — `manual`, `prerequisite-loss`, `corporation-leave`.
 
+### `/groups delete group:<id>`
+**Доступ:** Owner-only.
+
+Поле `group` использует autocomplete по существующим группам. Команда полностью удаляет access group из конфигурации и удаляет все сохранённые requests этой группы независимо от их статуса. Уже выданные этой группой Discord-роли автоматически не снимаются.
+
 ### `/groups role-add group:<id> kind:<kind> role:<role>`
 **Доступ:** Owner-only.
 

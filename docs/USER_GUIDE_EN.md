@@ -803,12 +803,15 @@ An approver must have one of the configured approver roles. A group can require 
 
 ```text
 /groups create ...
+/groups delete group:<id>
 /groups role-add group:<id> kind:<kind> role:<role>
 /groups role-remove group:<id> kind:<kind> role:<role>
 /groups enable group:<id> enabled:<true|false>
 ```
 
 `create` accepts a stable ID, display name, granted role, approver role and optional scope/eligibility/approval settings.
+
+`delete` permanently removes the selected group from configuration and deletes every stored request for that group regardless of status. The `group` field autocompletes existing groups. Discord roles previously granted by the group are not removed automatically; revoke them from affected members first when that cleanup is required.
 
 Role-rule kinds:
 
