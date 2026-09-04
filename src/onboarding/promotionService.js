@@ -9,6 +9,7 @@ const { getManagedRoleBinding } = require('../roles/managedRolePolicyRepository'
 const { grantManagedRole, removeManagedRole } = require('../roles/managedRoleService');
 const { createTranslator, resolveUserLanguage } = require('../localization/localizationService');
 const {
+  DEFAULT_PROFILE_ID,
   readOnboardingConfig,
   resolveOnboardingProfileForCorporation,
 } = require('./onboardingConfigRepository');
@@ -84,13 +85,36 @@ async function resolveProfileForBinding(storageRoot, binding) {
   }
 
   const enabledCorporationIds = await listEnabledOnboardingCorporationIds(storageRoot);
-  if (enabledCorporationIds.length === 1) {
-    const resolved = resolveOnboardingProfileForCorporation(
-      config,
-      enabledCorporationIds[0],
-      enabledCorporationIds
-    );
-    return { ...resolved, corporationIds: [enabledCorporationIds[0]] };
+  const enabledSet = new Set(enabledCorporationIds);
+  const bindingCorporationIds = [...new Set(
+    (Array.isArray(binding?.corporationIds) ? binding.corporationIds : [])
+      .map((value) => normalizeText(value))
+      .filter((value) => value && enabledSet.has(value))
+  )];
+  const candidateCorporationIds = bindingCorporationIds.length > 0
+    ? bindingCorporationIds
+    : (enabledCorporationIds.length === 1 ? [enabledCorporationIds[0]] : []);
+
+  if (candidateCorporationIds.length > 0) {
+    const resolvedProfiles = candidateCorporationIds.map((corporationId) => (
+      resolveOnboardingProfileForCorporation(config, corporationId, enabledCorporationIds)
+    ));
+    const profileIds = [...new Set(resolvedProfiles.map((entry) => entry.profileId))];
+    if (profileIds.length === 1) {
+      return {
+        ...resolvedProfiles[0],
+        corporationIds: candidateCorporationIds,
+      };
+    }
+  }
+
+  if (config.profiles[DEFAULT_PROFILE_ID]) {
+    return {
+      profileId: DEFAULT_PROFILE_ID,
+      profile: config.profiles[DEFAULT_PROFILE_ID],
+      corporationIds: bindingCorporationIds,
+      implicit: true,
+    };
   }
 
   const error = new Error('The binding has no usable onboarding profile.');

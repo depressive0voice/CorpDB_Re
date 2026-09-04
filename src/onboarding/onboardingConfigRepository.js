@@ -164,6 +164,38 @@ async function upsertOnboardingProfile(storageRoot, profileId, patch = {}) {
   });
 }
 
+async function deleteOnboardingProfile(storageRoot, profileId) {
+  const normalizedProfileId = normalizeProfileId(profileId);
+  if (normalizedProfileId === DEFAULT_PROFILE_ID) {
+    const error = new Error('The default onboarding profile cannot be deleted.');
+    error.code = 'onboarding_default_profile_protected';
+    throw error;
+  }
+
+  const config = await readOnboardingConfig(storageRoot);
+  if (!config.profiles[normalizedProfileId]) {
+    const error = new Error(`Onboarding profile ${normalizedProfileId} does not exist.`);
+    error.code = 'onboarding_profile_not_found';
+    throw error;
+  }
+
+  const profiles = { ...config.profiles };
+  delete profiles[normalizedProfileId];
+
+  const corporationProfiles = {};
+  for (const [corporationId, mappedProfileId] of Object.entries(config.corporationProfiles)) {
+    if (mappedProfileId !== normalizedProfileId) {
+      corporationProfiles[corporationId] = mappedProfileId;
+    }
+  }
+
+  return writeOnboardingConfig(storageRoot, {
+    ...config,
+    profiles,
+    corporationProfiles,
+  });
+}
+
 async function assignCorporationProfile(storageRoot, corporationId, profileId) {
   const normalizedCorporationId = normalizeCorporationId(corporationId);
   const normalizedProfileId = normalizeProfileId(profileId);
@@ -200,19 +232,11 @@ function resolveOnboardingProfileForCorporation(config, corporationId, enabledOn
     return { profileId: mappedProfileId, profile: config.profiles[mappedProfileId], implicit: false };
   }
 
-  if (enabledIds.length === 1) {
-    return {
-      profileId: DEFAULT_PROFILE_ID,
-      profile: config.profiles[DEFAULT_PROFILE_ID],
-      implicit: true,
-    };
-  }
-
-  const error = new Error(
-    `Corporation ${normalizedCorporationId} needs an explicit onboarding profile because multiple corporations are enabled.`
-  );
-  error.code = 'onboarding_corporation_profile_unconfigured';
-  throw error;
+  return {
+    profileId: DEFAULT_PROFILE_ID,
+    profile: config.profiles[DEFAULT_PROFILE_ID],
+    implicit: true,
+  };
 }
 
 module.exports = {
@@ -227,6 +251,7 @@ module.exports = {
   writeOnboardingConfig,
   updateWelcomeConfig,
   upsertOnboardingProfile,
+  deleteOnboardingProfile,
   assignCorporationProfile,
   unassignCorporationProfile,
   resolveOnboardingProfileForCorporation,

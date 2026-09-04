@@ -5,6 +5,7 @@ const {
   DEFAULT_PROFILE_ID,
   readOnboardingConfig,
   upsertOnboardingProfile,
+  deleteOnboardingProfile,
   assignCorporationProfile,
   unassignCorporationProfile,
 } = require('../../onboarding/onboardingConfigRepository');
@@ -63,13 +64,24 @@ function configureOnboardingGroup(group) {
       .setDescription('Show onboarding configuration')
       .setDescriptionLocalizations({ ru: 'Показать конфигурацию онбординга'}))
     .addSubcommand((subcommand) => subcommand
-      .setName('profile-create')
-      .setDescription('Create an onboarding profile')
-      .setDescriptionLocalizations({ ru: 'Создать onboarding-профиль'})
+      .setName('profile')
+      .setDescription('Create or delete an onboarding profile')
+      .setDescriptionLocalizations({ ru: 'Создать или удалить onboarding-профиль'})
+      .addStringOption((option) => option
+        .setName('action')
+        .setDescription('Profile action')
+        .setDescriptionLocalizations({ ru: 'Действие с профилем' })
+        .setRequired(true)
+        .addChoices(
+          { name: 'create', value: 'create' },
+          { name: 'delete', value: 'delete' }
+        ))
       .addStringOption((option) => option
         .setName('profile')
         .setDescription('Profile ID')
+        .setDescriptionLocalizations({ ru: 'ID профиля' })
         .setRequired(true)
+        .setAutocomplete(true)
         .setMaxLength(64)))
     .addSubcommand((subcommand) => subcommand
       .setName('map-corporation')
@@ -92,9 +104,9 @@ function configureOnboardingGroup(group) {
         .setMaxLength(64)))
     .addSubcommand((subcommand) => subcommand
       .setName('unmap-corporation')
-      .setDescription('Remove an explicit corporation onboarding mapping')
+      .setDescription('Remove an explicit mapping and use the default profile')
       .setDescriptionLocalizations({
-        ru: 'Удалить явную привязку onboarding-профиля корпорации',
+        ru: 'Удалить явную привязку и использовать профиль default',
       })
       .addStringOption((option) => option
         .setName('corporation')
@@ -268,9 +280,19 @@ async function autocompleteOnboardingAdmin(interaction, context) {
   }
 
   if (focused.name === 'profile') {
+    const subcommand = interaction.options.getSubcommand(false);
+    const action = subcommand === 'profile'
+      ? interaction.options.getString('action', false)
+      : '';
+    if (subcommand === 'profile' && action === 'create') {
+      await interaction.respond([]);
+      return;
+    }
+
     const config = await readOnboardingConfig(storageRoot);
     const query = String(focused.value || '').trim().toLowerCase();
     const choices = Object.keys(config.profiles)
+      .filter((profileId) => !(subcommand === 'profile' && action === 'delete' && profileId === DEFAULT_PROFILE_ID))
       .filter((profileId) => !query || profileId.toLowerCase().includes(query))
       .slice(0, 25)
       .map((profileId) => ({ name: profileId.slice(0, 100), value: profileId }));
@@ -311,29 +333,43 @@ async function executeOnboardingAdmin(interaction, context) {
         months: profile.probationMonths,
       }));
     }
-    lines.push('');
-    if (corporations.length === 1 && !config.corporationProfiles[corporations[0]]) {
-      lines.push(context.t('onboarding.show.singleImplicit', { corporationId: corporations[0] }));
-    } else if (corporations.length > 1) {
-      lines.push(context.t('onboarding.show.multiWarning'));
-    }
+    lines.push('', context.t('onboarding.show.defaultFallback'));
     for (const corporationId of corporations) {
       const profile = config.corporationProfiles[corporationId];
-      if (profile) lines.push(context.t('onboarding.show.mapping', { corporationId, profile }));
+      if (profile) {
+        lines.push(context.t('onboarding.show.mapping', { corporationId, profile }));
+      }
     }
     await interaction.reply({ content: lines.join('\n'), flags: MessageFlags.Ephemeral });
     return;
   }
 
-  if (subcommand === 'profile-create') {
+  if (subcommand === 'profile') {
+    const action = interaction.options.getString('action', true);
     const profileId = interaction.options.getString('profile', true);
-    const saved = await upsertOnboardingProfile(storageRoot, profileId, {});
     const normalized = String(profileId).trim().toLowerCase();
-    await interaction.reply({
-      content: context.t('onboarding.profile.created', { profile: normalized }),
-      flags: MessageFlags.Ephemeral,
-    });
-    return saved;
+
+    if (action === 'create') {
+      const saved = await upsertOnboardingProfile(storageRoot, profileId, {});
+      await interaction.reply({
+        content: context.t('onboarding.profile.created', { profile: normalized }),
+        flags: MessageFlags.Ephemeral,
+      });
+      return saved;
+    }
+
+    if (action === 'delete') {
+      if (normalized === DEFAULT_PROFILE_ID) {
+        throw new Error(context.t('onboarding.error.defaultProfileProtected'));
+      }
+      await ensureExistingProfile(storageRoot, profileId, context.t);
+      const saved = await deleteOnboardingProfile(storageRoot, profileId);
+      await interaction.reply({
+        content: context.t('onboarding.profile.deleted', { profile: normalized }),
+        flags: MessageFlags.Ephemeral,
+      });
+      return saved;
+    }
   }
 
   if (subcommand === 'map-corporation') {

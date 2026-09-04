@@ -10,6 +10,7 @@ const { writeMembers } = require('../src/members/memberRepository');
 const {
   readOnboardingConfig,
   upsertOnboardingProfile,
+  deleteOnboardingProfile,
   assignCorporationProfile,
   resolveOnboardingProfileForCorporation,
   updateWelcomeConfig,
@@ -139,15 +140,45 @@ test('one enabled corporation uses the default onboarding profile without explic
   });
 });
 
-test('two or more corporations require explicit onboarding profile mappings', async () => {
+test('multiple corporations use default unless an explicit onboarding profile is mapped', async () => {
   await withTempStorage(async (root) => {
     await registerCorporation(root, '88001');
     await registerCorporation(root, '88002');
+    await upsertOnboardingProfile(root, 'special', { probationMonths: 6 });
+    await assignCorporationProfile(root, '88002', 'special');
+
     const config = await readOnboardingConfig(root);
-    assert.throws(
-      () => resolveOnboardingProfileForCorporation(config, '88001', ['88001', '88002']),
-      (error) => error.code === 'onboarding_corporation_profile_unconfigured'
+    const first = resolveOnboardingProfileForCorporation(config, '88001', ['88001', '88002']);
+    const second = resolveOnboardingProfileForCorporation(config, '88002', ['88001', '88002']);
+    assert.equal(first.profileId, 'default');
+    assert.equal(first.implicit, true);
+    assert.equal(second.profileId, 'special');
+    assert.equal(second.implicit, false);
+    assert.equal(second.profile.probationMonths, 6);
+  });
+});
+
+test('default onboarding profile is protected and deleting another profile removes its corporation mappings', async () => {
+  await withTempStorage(async (root) => {
+    await registerCorporation(root, '88001');
+    await registerCorporation(root, '88002');
+    await upsertOnboardingProfile(root, 'special', { probationMonths: 6 });
+    await assignCorporationProfile(root, '88001', 'special');
+
+    await assert.rejects(
+      deleteOnboardingProfile(root, 'default'),
+      (error) => error.code === 'onboarding_default_profile_protected'
     );
+
+    await deleteOnboardingProfile(root, 'special');
+    const config = await readOnboardingConfig(root);
+    assert.equal(config.profiles.default.probationMonths, 3);
+    assert.equal(config.profiles.special, undefined);
+    assert.equal(config.corporationProfiles['88001'], undefined);
+
+    const resolved = resolveOnboardingProfileForCorporation(config, '88001', ['88001', '88002']);
+    assert.equal(resolved.profileId, 'default');
+    assert.equal(resolved.implicit, true);
   });
 });
 
