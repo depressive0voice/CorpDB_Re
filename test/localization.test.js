@@ -86,6 +86,24 @@ test('translation interpolation works independently in each dictionary', () => {
   );
 });
 
+test('direct-message role labels never emit guild role mentions', () => {
+  const roleMention = '<@&73002>';
+  const cases = [
+    ['en', 'binding.dm.roleGranted', 'Granted role: **Rookie**'],
+    ['ru', 'binding.dm.roleGranted', 'Выдана роль: **Rookie**'],
+    ['en', 'bindingAdmin.dm.role', 'Granted role: **Rookie**'],
+    ['ru', 'bindingAdmin.dm.role', 'Выдана роль: **Rookie**'],
+    ['en', 'promotion.dm.role', 'Granted role: **Main**'],
+    ['ru', 'promotion.dm.role', 'Выдана роль: **Main**'],
+  ];
+
+  for (const [language, key, expected] of cases) {
+    const value = translate(language, key, { role: roleMention });
+    assert.equal(value, expected);
+    assert.doesNotMatch(value, /<@&\d+>/);
+  }
+});
+
 test('unknown language falls back to the English/default dictionary', () => {
   assert.equal(
     translate('unsupported', 'language.changed'),

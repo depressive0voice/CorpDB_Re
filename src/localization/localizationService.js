@@ -16,6 +16,7 @@ const blacklistLocales = require('./blacklistLocales');
 const bindingAdminLocales = require('./bindingAdminLocales');
 const bindingAuditLocales = require('./bindingAuditLocales');
 const systemLocales = require('./systemLocales');
+const directMessageLocales = require('./directMessageLocales');
 const { DEFAULT_LANGUAGE } = require('../config/env');
 const { getUserLanguage } = require('./userLanguageRepository');
 
@@ -38,6 +39,7 @@ const dictionaries = Object.freeze({
     ...bindingAdminLocales.en,
     ...bindingAuditLocales.en,
     ...systemLocales.en,
+    ...directMessageLocales.en,
   }),
   ru: Object.freeze({
     ...ru,
@@ -57,6 +59,7 @@ const dictionaries = Object.freeze({
     ...bindingAdminLocales.ru,
     ...bindingAuditLocales.ru,
     ...systemLocales.ru,
+    ...directMessageLocales.ru,
   }),
 });
 
