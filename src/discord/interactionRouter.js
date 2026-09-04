@@ -38,6 +38,11 @@ function getInteractionModuleKey(interaction) {
   return getModuleForAdminGroup(group);
 }
 
+function shouldAutoDeferInteraction(interaction) {
+  if (interaction.commandName !== 'binding-admin') return false;
+  return interaction.options.getSubcommand(false) === 'bind-user';
+}
+
 async function installModuleGuard(interaction, context, isAutocomplete) {
   const moduleKey = getInteractionModuleKey(interaction);
   if (!moduleKey) return true;
@@ -131,6 +136,10 @@ function installInteractionRouter(client, context) {
         return;
       }
 
+      if (shouldAutoDeferInteraction(interaction) && !interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      }
+
       await command.execute(interaction, interactionContext);
     } catch (error) {
       const label = isCommand || isAutocomplete ? `/${interaction.commandName}` : interaction.customId;
@@ -143,5 +152,6 @@ function installInteractionRouter(client, context) {
 
 module.exports = {
   getInteractionModuleKey,
+  shouldAutoDeferInteraction,
   installInteractionRouter,
 };
