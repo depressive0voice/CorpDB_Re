@@ -224,11 +224,14 @@ All subcommands require Main-admin.
 ### Profiles
 
 - `/admin onboarding show` — shows welcome settings, profiles and corporation mappings.
-- `/admin onboarding profile-create profile:<id>` — creates a profile.
+- `/admin onboarding profile action:create profile:<id>` — creates a profile with the supplied ID.
+- `/admin onboarding profile action:delete profile:<id>` — deletes an existing custom profile. `default` cannot be deleted.
 - `/admin onboarding map-corporation corporation:<id> profile:<id>` — maps a corporation to a profile.
-- `/admin onboarding unmap-corporation corporation:<id>` — removes an explicit mapping.
+- `/admin onboarding unmap-corporation corporation:<id>` — removes an explicit mapping; the corporation then uses `default`.
 
-For `map-corporation` and `unmap-corporation`, the `corporation` field autocompletes enabled registered corporations for which onboarding is enabled. `map-corporation` autocompletes `profile` from existing onboarding profiles. Optional `[profile]` fields on profile-specific onboarding commands also autocomplete existing profiles; omitting the field uses `default`.
+The `default` profile always exists, is protected from deletion and is the fallback for every onboarding-enabled corporation without an explicit mapping, regardless of how many corporations are registered. Deleting a custom profile also removes corporation mappings that pointed to it, so those corporations fall back to `default`.
+
+For `map-corporation` and `unmap-corporation`, the `corporation` field autocompletes enabled registered corporations for which onboarding is enabled. `map-corporation` autocompletes `profile` from existing onboarding profiles. For `profile action:delete`, autocomplete lists only deletable custom profiles and excludes `default`; for `action:create`, enter the new profile ID manually. Optional `[profile]` fields on profile-specific onboarding commands also autocomplete existing profiles; omitting the field uses `default`.
 
 ### Welcome
 

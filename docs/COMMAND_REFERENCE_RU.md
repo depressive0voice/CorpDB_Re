@@ -224,11 +224,14 @@ Read-only audit Discord ↔ Main integrity. Ничего не исправляе
 ### Профили
 
 - `/admin onboarding show` — показывает welcome settings, profiles и corporation mappings.
-- `/admin onboarding profile-create profile:<id>` — создаёт profile.
+- `/admin onboarding profile action:create profile:<id>` — создаёт profile с указанным ID.
+- `/admin onboarding profile action:delete profile:<id>` — удаляет существующий custom profile. `default` удалить нельзя.
 - `/admin onboarding map-corporation corporation:<id> profile:<id>` — связывает corporation с profile.
-- `/admin onboarding unmap-corporation corporation:<id>` — удаляет явный mapping.
+- `/admin onboarding unmap-corporation corporation:<id>` — удаляет явный mapping; после этого корпорация использует `default`.
 
-В `map-corporation` и `unmap-corporation` поле `corporation` использует autocomplete по включённым зарегистрированным корпорациям, для которых включён onboarding. В `map-corporation` поле `profile` выбирается autocomplete из уже созданных onboarding profiles. Необязательное поле `[profile]` в остальных profile-specific onboarding-командах также предлагает существующие профили; если поле не указано, используется `default`.
+Профиль `default` существует всегда, защищён от удаления и используется как fallback для любой onboarding-корпорации без явного mapping — независимо от количества зарегистрированных корпораций. При удалении custom profile все corporation mappings на него удаляются и соответствующие корпорации возвращаются на `default`.
+
+В `map-corporation` и `unmap-corporation` поле `corporation` использует autocomplete по включённым зарегистрированным корпорациям, для которых включён onboarding. В `map-corporation` поле `profile` выбирается autocomplete из уже созданных onboarding profiles. В `profile action:delete` autocomplete предлагает только удаляемые custom profiles и не показывает `default`; при `action:create` новый ID вводится вручную. Необязательное поле `[profile]` в остальных profile-specific onboarding-командах также предлагает существующие профили; если поле не указано, используется `default`.
 
 ### Welcome
 

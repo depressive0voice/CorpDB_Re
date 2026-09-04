@@ -567,20 +567,25 @@ Rookie → Main
 
 ### 10.2. Onboarding profiles
 
-With one corporation, the implicit `default` profile can be used. When onboarding is enabled for two or more corporations, configure explicit corporation-to-profile mappings.
+The `default` profile is created automatically, always exists and cannot be deleted. Every onboarding-enabled corporation without another explicit profile mapping uses `default`, whether the instance has one corporation or many.
 
-Multiple corporations may share one profile.
+Several corporations may share one custom profile. An explicit mapping is only needed when a corporation must use a profile other than `default`.
 
 Main-admin commands:
 
 ```text
 /admin onboarding show
-/admin onboarding profile-create profile:<id>
+/admin onboarding profile action:create profile:<id>
+/admin onboarding profile action:delete profile:<id>
 /admin onboarding map-corporation corporation:<id> profile:<id>
 /admin onboarding unmap-corporation corporation:<id>
 ```
 
-`corporation` on `map-corporation` and `unmap-corporation` autocompletes from enabled registered corporations for which onboarding is enabled. `profile` on `map-corporation` autocompletes from existing onboarding profiles. Optional `[profile]` fields on profile-specific onboarding commands also autocomplete existing profiles; omitting them uses `default`.
+`profile action:create` creates a new custom profile and its ID is entered manually. `profile action:delete` removes an existing custom profile; `default` is protected and excluded from delete autocomplete. Deleting a custom profile also removes corporation mappings that pointed to it, so those corporations automatically fall back to `default`.
+
+`corporation` on `map-corporation` and `unmap-corporation` autocompletes from enabled registered corporations for which onboarding is enabled. `profile` on `map-corporation` autocompletes from existing onboarding profiles. `unmap-corporation` removes the explicit mapping and therefore returns the corporation to `default`. Optional `[profile]` fields on profile-specific onboarding commands also autocomplete existing profiles; omitting them uses `default`.
+
+If an existing main binding stored a profile that is later deleted, promotion resolves the current corporation profile and falls back to `default` when no other mapping is present.
 
 Profile roles:
 
@@ -1116,8 +1121,10 @@ Rules:
 - `/members sync` and `/members status` use the same corporation autocomplete and filter out disabled/non-members corporations;
 - onboarding corporation selectors autocomplete enabled corporations with onboarding enabled, and profile selectors autocomplete existing onboarding profiles;
 - with a single corporation, many commands can resolve it without an explicit argument;
-- with multiple onboarding corporations, configure explicit `corporation → onboarding profile` mappings;
-- one onboarding profile may be shared by several corporations.
+- every onboarding corporation without an explicit mapping automatically uses `default`, including multi-corporation instances;
+- an explicit `corporation → onboarding profile` mapping is needed only for corporations that should use a profile other than `default`;
+- one onboarding profile may be shared by several corporations;
+- `default` cannot be deleted; deleting a custom profile removes mappings to it and returns affected corporations to `default`.
 
 ---
 

@@ -567,20 +567,25 @@ Main привязка одобрена
 
 ### 10.2. Onboarding профили
 
-Для одной корпорации может использоваться автоматический `default` профиль. Если onboarding включён для двух и более корпораций, рекомендуется явно сопоставить каждую корпорацию со своим профилем.
+Профиль `default` создаётся автоматически, существует всегда и не может быть удалён. Любая корпорация с включённым onboarding, для которой не назначен другой профиль, использует `default` — это правило одинаково работает и для одной, и для нескольких корпораций.
 
-Несколько корпораций могут использовать один профиль.
+Несколько корпораций могут использовать один custom profile. Явный mapping нужен только тогда, когда конкретная корпорация должна использовать профиль, отличный от `default`.
 
 Основные команды main-admin:
 
 ```text
 /admin onboarding show
-/admin onboarding profile-create profile:<id>
+/admin onboarding profile action:create profile:<id>
+/admin onboarding profile action:delete profile:<id>
 /admin onboarding map-corporation corporation:<id> profile:<id>
 /admin onboarding unmap-corporation corporation:<id>
 ```
 
-В `map-corporation` и `unmap-corporation` поле `corporation` использует autocomplete по включённым зарегистрированным корпорациям, для которых включён onboarding. В `map-corporation` поле `profile` выбирается из уже созданных onboarding profiles. Необязательное поле `[profile]` в profile-specific onboarding-командах также использует autocomplete существующих профилей; если оно не указано, используется `default`.
+`profile action:create` создаёт новый custom profile; его ID вводится вручную. `profile action:delete` удаляет существующий custom profile; `default` защищён от удаления и не предлагается в autocomplete. При удалении custom profile все привязки корпораций к нему также удаляются, поэтому эти корпорации автоматически возвращаются на `default`.
+
+В `map-corporation` и `unmap-corporation` поле `corporation` использует autocomplete по включённым зарегистрированным корпорациям, для которых включён onboarding. В `map-corporation` поле `profile` выбирается из уже созданных onboarding profiles. `unmap-corporation` снимает явный mapping и тем самым возвращает корпорацию на `default`. Необязательное поле `[profile]` в profile-specific onboarding-командах также использует autocomplete существующих профилей; если оно не указано, используется `default`.
+
+Если у уже существующей main binding был сохранён профиль, который позже удалили, promotion пытается разрешить актуальный профиль через корпорацию и при отсутствии другого mapping использует `default`.
 
 Роли профиля:
 
@@ -1116,8 +1121,10 @@ ru
 - `/members sync` и `/members status` используют тот же autocomplete корпораций и не показывают отключённые/неподходящие для members корпорации;
 - onboarding corporation selectors предлагают включённые корпорации с включённым onboarding, а profile selectors предлагают уже созданные onboarding profiles;
 - при одной корпорации большинство команд могут использовать её без явного параметра;
-- при нескольких onboarding corporations следует явно настроить `corporation → onboarding profile`;
-- один onboarding profile можно использовать для нескольких корпораций.
+- каждая onboarding-корпорация без явного mapping автоматически использует `default`, в том числе при нескольких корпорациях;
+- явный `corporation → onboarding profile` mapping нужен только для корпораций, которым требуется профиль, отличный от `default`;
+- один onboarding profile можно использовать для нескольких корпораций;
+- `default` удалить нельзя; удаление custom profile снимает mappings на него и возвращает затронутые корпорации на `default`.
 
 ---
 
