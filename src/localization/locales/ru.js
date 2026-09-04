@@ -84,6 +84,7 @@ module.exports = Object.freeze({
   'groups.create.required': 'Обязательные роли: {roles}',
   'groups.create.approvers': 'Аппруверы: {roles}',
   'groups.create.policy': 'Требуется аппрувов: **{approvals}**; политика отзыва: **{policy}**.',
+  'groups.delete.done': 'Группа доступа **{groupName}** (`{groupId}`) удалена. Удалено сохранённых заявок: **{requests}**. Уже выданные роли Discord не изменялись.',
   'groups.error.unknownRoleKind': 'Неизвестный тип роли группы доступа: {kind}.',
   'groups.error.notFound': 'Группа доступа {groupId} не существует.',
   'groups.roleMutation.added': 'Роль {role} добавлена в **{groupName}** как **{kind}**.',

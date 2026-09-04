@@ -1,9 +1,14 @@
 const { MessageFlags, SlashCommandBuilder } = require('discord.js');
 const {
   createAccessGroup,
+  deleteAccessGroup,
   getAccessGroup,
+  listAccessGroups,
   updateAccessGroup,
 } = require('../../accessGroups/accessGroupRepository');
+const {
+  deleteAccessGroupRequests,
+} = require('../../accessGroups/accessGroupRequestRepository');
 const {
   listGroupAvailability,
   requestAccessGroup,
@@ -153,6 +158,17 @@ const data = new SlashCommandBuilder()
         { name: 'Corporation leave', value: 'corporation-leave' }
       )
       .setRequired(false)))
+  .addSubcommand((subcommand) => subcommand
+    .setName('delete')
+    .setDescription('Delete an access group and all of its requests (owner only)')
+    .setDescriptionLocalizations({
+      ru: 'Удалить группу доступа и все её заявки (только owner)',
+    })
+    .addStringOption((option) => option
+      .setName('group')
+      .setDescription('Access group ID')
+      .setAutocomplete(true)
+      .setRequired(true)))
   .addSubcommand((subcommand) => subcommand
     .setName('role-add')
     .setDescription('Add a role rule to an access group (owner only)')
@@ -467,6 +483,24 @@ async function handleCreate(interaction, context) {
   });
 }
 
+async function handleDelete(interaction, context) {
+  if (!(await ensureOwner(interaction, context))) return;
+  const groupId = interaction.options.getString('group', true);
+  const group = await getAccessGroup(context.config.storage.rootDir, groupId);
+  if (!group) throw new Error(context.t('groups.error.notFound', { groupId }));
+
+  const deletedRequests = await deleteAccessGroupRequests(context.config.storage.rootDir, group.id);
+  await deleteAccessGroup(context.config.storage.rootDir, group.id);
+  await interaction.reply({
+    content: context.t('groups.delete.done', {
+      groupName: group.name,
+      groupId: group.id,
+      requests: deletedRequests,
+    }),
+    flags: MessageFlags.Ephemeral,
+  });
+}
+
 function mutateRoleList(group, kind, roleId, operation, t = null) {
   const path = ROLE_KINDS[kind];
   if (!path) {
@@ -522,6 +556,28 @@ async function handleEnable(interaction, context) {
   });
 }
 
+async function autocomplete(interaction, context) {
+  const focused = interaction.options.getFocused(true);
+  const subcommand = interaction.options.getSubcommand(false);
+  if (subcommand !== 'delete' || focused.name !== 'group') {
+    await interaction.respond([]);
+    return;
+  }
+
+  const query = String(focused.value || '').trim().toLowerCase();
+  const groups = await listAccessGroups(context.config.storage.rootDir);
+  const choices = groups
+    .filter((group) => !query
+      || group.id.toLowerCase().includes(query)
+      || group.name.toLowerCase().includes(query))
+    .slice(0, 25)
+    .map((group) => ({
+      name: `${group.name} (${group.id})`.slice(0, 100),
+      value: group.id,
+    }));
+  await interaction.respond(choices);
+}
+
 async function execute(interaction, context) {
   const subcommand = interaction.options.getSubcommand();
   if (subcommand === 'list') return handleList(interaction, context);
@@ -531,6 +587,7 @@ async function execute(interaction, context) {
   if (subcommand === 'reject') return handleReject(interaction, context);
   if (subcommand === 'revoke') return handleRevoke(interaction, context);
   if (subcommand === 'create') return handleCreate(interaction, context);
+  if (subcommand === 'delete') return handleDelete(interaction, context);
   if (subcommand === 'role-add') return handleRoleMutation(interaction, context, 'add');
   if (subcommand === 'role-remove') return handleRoleMutation(interaction, context, 'remove');
   if (subcommand === 'enable') return handleEnable(interaction, context);
@@ -539,6 +596,7 @@ async function execute(interaction, context) {
 
 module.exports = {
   data,
+  autocomplete,
   execute,
   mutateRoleList,
 };

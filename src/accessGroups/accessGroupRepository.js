@@ -155,6 +155,17 @@ async function updateAccessGroup(storageRoot, groupId, patch) {
   return next;
 }
 
+async function deleteAccessGroup(storageRoot, groupId) {
+  const id = normalizeGroupId(groupId);
+  const state = await readAccessGroupsState(storageRoot);
+  const index = state.groups.findIndex((group) => group.id === id);
+  if (index < 0) throw new Error(`Access group ${id} does not exist.`);
+
+  const [deleted] = state.groups.splice(index, 1);
+  await writeAccessGroupsState(storageRoot, state);
+  return deleted;
+}
+
 module.exports = {
   GROUP_SCOPES,
   REVOKE_POLICIES,
@@ -167,4 +178,5 @@ module.exports = {
   getAccessGroup,
   createAccessGroup,
   updateAccessGroup,
+  deleteAccessGroup,
 };

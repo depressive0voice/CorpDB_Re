@@ -130,6 +130,16 @@ async function updateAccessGroupRequest(storageRoot, requestId, updater) {
   return next;
 }
 
+async function deleteAccessGroupRequests(storageRoot, groupId) {
+  const id = normalizeGroupId(groupId);
+  const state = await readAccessGroupRequestsState(storageRoot);
+  const before = state.requests.length;
+  state.requests = state.requests.filter((request) => request.groupId !== id);
+  const deletedCount = before - state.requests.length;
+  await writeAccessGroupRequestsState(storageRoot, state);
+  return deletedCount;
+}
+
 module.exports = {
   REQUEST_STATUSES,
   createDefaultAccessGroupRequestsState,
@@ -139,4 +149,5 @@ module.exports = {
   getAccessGroupRequest,
   createAccessGroupRequest,
   updateAccessGroupRequest,
+  deleteAccessGroupRequests,
 };

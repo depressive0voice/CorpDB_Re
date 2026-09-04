@@ -84,6 +84,7 @@ module.exports = Object.freeze({
   'groups.create.required': 'Required roles: {roles}',
   'groups.create.approvers': 'Approvers: {roles}',
   'groups.create.policy': 'Required approvals: **{approvals}**; revoke policy: **{policy}**.',
+  'groups.delete.done': 'Deleted access group **{groupName}** (`{groupId}`) and **{requests}** stored request(s). Existing Discord roles were not changed.',
   'groups.error.unknownRoleKind': 'Unknown access group role kind: {kind}.',
   'groups.error.notFound': 'Access group {groupId} does not exist.',
   'groups.roleMutation.added': 'Added {role} to **{groupName}** as **{kind}**.',
