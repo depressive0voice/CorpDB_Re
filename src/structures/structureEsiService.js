@@ -162,8 +162,31 @@ async function getUniverseMoonDetailsByIds(config, moonIds, options = {}) {
   return result;
 }
 
+function normalizeUniverseNameIds(ids) {
+  return [...new Set((Array.isArray(ids) ? ids : [])
+    .map((value) => String(value || '').trim())
+    .filter(Boolean))];
+}
+
+async function resolveUniverseNamesSafely(config, ids, options = {}) {
+  const normalizedIds = normalizeUniverseNameIds(ids);
+  if (normalizedIds.length === 0) return [];
+
+  try {
+    return await resolveUniverseNames(config, normalizedIds, options);
+  } catch (error) {
+    if (Number(error?.status) !== 404) throw error;
+    if (normalizedIds.length === 1) return [];
+
+    const middle = Math.ceil(normalizedIds.length / 2);
+    const left = await resolveUniverseNamesSafely(config, normalizedIds.slice(0, middle), options);
+    const right = await resolveUniverseNamesSafely(config, normalizedIds.slice(middle), options);
+    return [...left, ...right];
+  }
+}
+
 async function resolveUniverseNameMap(config, ids, options = {}) {
-  const values = await resolveUniverseNames(config, ids, options);
+  const values = await resolveUniverseNamesSafely(config, ids, options);
   return new Map((Array.isArray(values) ? values : [])
     .map((entry) => [String(entry?.id || '').trim(), String(entry?.name || '').trim()])
     .filter(([id, name]) => id && name));
